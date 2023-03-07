@@ -888,6 +888,7 @@ class OrchestratorCli(OrchestratorClientMixin, MgrModule,
                    unmanaged: Optional[bool] = None,
                    dry_run: bool = False,
                    no_overwrite: bool = False,
+                   method: Optional[OSDMethod] = None,
                    inbuf: Optional[str] = None  # deprecated. Was deprecated before Quincy
                    ) -> HandleCommandResult:
         """
@@ -930,7 +931,8 @@ class OrchestratorCli(OrchestratorClientMixin, MgrModule,
                     placement=PlacementSpec(host_pattern='*'),
                     data_devices=DeviceSelection(all=True),
                     unmanaged=unmanaged,
-                    preview_only=dry_run
+                    preview_only=dry_run,
+                    method=method
                 )
             ]
             return self._apply_misc(dg_specs, dry_run, format, no_overwrite)
@@ -1442,6 +1444,22 @@ Usage:
                            unmanaged=unmanaged)
         specs: List[ServiceSpec] = spec.get_tracing_specs()
         return self._apply_misc(specs, dry_run, format, no_overwrite)
+
+    @_cli_write_command('orch set-unmanaged')
+    def _set_unmanaged(self, service_name: str) -> HandleCommandResult:
+        """Set 'unmanaged: true' for the given service name"""
+        completion = self.set_unmanaged(service_name, True)
+        raise_if_exception(completion)
+        out = completion.result_str()
+        return HandleCommandResult(stdout=out)
+
+    @_cli_write_command('orch set-managed')
+    def _set_managed(self, service_name: str) -> HandleCommandResult:
+        """Set 'unmanaged: false' for the given service name"""
+        completion = self.set_unmanaged(service_name, False)
+        raise_if_exception(completion)
+        out = completion.result_str()
+        return HandleCommandResult(stdout=out)
 
     @_cli_write_command('orch set backend')
     def _set_backend(self, module_name: Optional[str] = None) -> HandleCommandResult:
