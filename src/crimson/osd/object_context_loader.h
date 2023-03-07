@@ -3,7 +3,6 @@
 #include <seastar/core/future.hh>
 #include "crimson/common/errorator.h"
 #include "crimson/osd/object_context.h"
-#include "crimson/osd/shard_services.h"
 #include "crimson/osd/pg_backend.h"
 
 namespace crimson::osd {
@@ -14,10 +13,12 @@ public:
     ObjectContext::obc_accessing_option_t>;
 
   ObjectContextLoader(
-    ShardServices& _shard_services,
-    PGBackend* _backend)
-    : shard_services{_shard_services},
-      backend{_backend}
+    ObjectContextRegistry& _obc_services,
+    PGBackend& _backend,
+    DoutPrefixProvider& dpp)
+    : obc_registry{_obc_services},
+      backend{_backend},
+      dpp{dpp}
     {}
 
   using load_obc_ertr = crimson::errorator<
@@ -65,8 +66,9 @@ public:
   void notify_on_change(bool is_primary);
 
 private:
-  ShardServices &shard_services;
-  PGBackend* backend;
+  ObjectContextRegistry& obc_registry;
+  PGBackend& backend;
+  DoutPrefixProvider& dpp;
   obc_accessing_list_t obc_set_accessing;
 };
 }

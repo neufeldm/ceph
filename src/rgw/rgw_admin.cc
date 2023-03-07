@@ -7764,7 +7764,8 @@ next:
       }
     }
     if (need_rewrite) {
-      ret = static_cast<rgw::sal::RadosStore*>(driver)->getRados()->rewrite_obj(obj.get(), dpp(), null_yield);
+      RGWRados* store = static_cast<rgw::sal::RadosStore*>(driver)->getRados();
+      ret = store->rewrite_obj(bucket->get_info(), obj->get_obj(), dpp(), null_yield);
       if (ret < 0) {
         cerr << "ERROR: object rewrite returned: " << cpp_strerror(-ret) << std::endl;
         return -ret;
@@ -7894,7 +7895,8 @@ next:
           if (!need_rewrite) {
             formatter->dump_string("status", "Skipped");
           } else {
-            r = static_cast<rgw::sal::RadosStore*>(driver)->getRados()->rewrite_obj(obj.get(), dpp(), null_yield);
+            RGWRados* store = static_cast<rgw::sal::RadosStore*>(driver)->getRados();
+            r = store->rewrite_obj(bucket->get_info(), obj->get_obj(), dpp(), null_yield);
             if (r == 0) {
               formatter->dump_string("status", "Success");
             } else {
@@ -10317,7 +10319,7 @@ next:
 
   if (opt_cmd == OPT::PUBSUB_TOPICS_LIST) {
 
-    RGWPubSub ps(static_cast<rgw::sal::RadosStore*>(driver), tenant);
+    RGWPubSub ps(driver, tenant);
 
     if (!bucket_name.empty()) {
       rgw_pubsub_bucket_topics result;
@@ -10327,8 +10329,8 @@ next:
         return -ret;
       }
 
-      const RGWPubSub::Bucket b(ps, bucket->get_key());
-      ret = b.get_topics(&result);
+      const RGWPubSub::Bucket b(ps, bucket.get());
+      ret = b.get_topics(dpp(), result, null_yield);
       if (ret < 0 && ret != -ENOENT) {
         cerr << "ERROR: could not get topics: " << cpp_strerror(-ret) << std::endl;
         return -ret;
@@ -10336,7 +10338,7 @@ next:
       encode_json("result", result, formatter.get());
     } else {
       rgw_pubsub_topics result;
-      int ret = ps.get_topics(&result);
+      int ret = ps.get_topics(dpp(), result, null_yield);
       if (ret < 0 && ret != -ENOENT) {
         cerr << "ERROR: could not get topics: " << cpp_strerror(-ret) << std::endl;
         return -ret;
@@ -10352,10 +10354,10 @@ next:
       return EINVAL;
     }
 
-    RGWPubSub ps(static_cast<rgw::sal::RadosStore*>(driver), tenant);
+    RGWPubSub ps(driver, tenant);
 
     rgw_pubsub_topic topic;
-    ret = ps.get_topic(topic_name, &topic);
+    ret = ps.get_topic(dpp(), topic_name, topic, null_yield);
     if (ret < 0) {
       cerr << "ERROR: could not get topic: " << cpp_strerror(-ret) << std::endl;
       return -ret;
@@ -10370,7 +10372,7 @@ next:
       return EINVAL;
     }
 
-    RGWPubSub ps(static_cast<rgw::sal::RadosStore*>(driver), tenant);
+    RGWPubSub ps(driver, tenant);
 
     ret = ps.remove_topic(dpp(), topic_name, null_yield);
     if (ret < 0) {

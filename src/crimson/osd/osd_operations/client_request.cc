@@ -35,7 +35,7 @@ void ClientRequest::Orderer::clear_and_cancel()
 {
   for (auto i = list.begin(); i != list.end(); ) {
     logger().debug(
-      "{}: ClientRequest::Orderer::clear_and_cancel {}",
+      "ClientRequest::Orderer::clear_and_cancel: {}",
       *i);
     i->complete_request();
     remove_request(*(i++));
@@ -87,7 +87,7 @@ ConnectionPipeline &ClientRequest::cp()
 
 ClientRequest::PGPipeline &ClientRequest::pp(PG &pg)
 {
-  return pg.client_request_pg_pipeline;
+  return pg.request_pg_pipeline;
 }
 
 bool ClientRequest::same_session_and_pg(const ClientRequest& other_op) const
@@ -226,7 +226,7 @@ ClientRequest::process_op(instance_handle_t &ihref, Ref<PG> &pg)
         return ihref.enter_stage<interruptor>(pp(*pg).get_obc, *this
 	).then_interruptible(
           [this, pg, &ihref]() mutable -> PG::load_obc_iertr::future<> {
-          logger().debug("{}: got obc lock", *this);
+          logger().debug("{}: in get_obc stage", *this);
           op_info.set_from_op(&*m, *pg->get_osdmap());
           return pg->with_locked_obc(
             m->get_hobj(), op_info,
