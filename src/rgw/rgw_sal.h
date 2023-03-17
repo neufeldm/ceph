@@ -1078,7 +1078,10 @@ class Object {
     /** Get a new DeleteOp for this object */
     virtual std::unique_ptr<DeleteOp> get_delete_op() = 0;
 
-    // TODO: remove omap APIs. rgw_torrent.cc shouldn't use omap
+    /// Return stored torrent info or -ENOENT if there isn't any.
+    virtual int get_torrent_info(const DoutPrefixProvider* dpp,
+                                 optional_yield y, bufferlist& bl) = 0;
+
     /** Get the OMAP values matching the given set of keys */
     virtual int omap_get_vals_by_keys(const DoutPrefixProvider *dpp, const std::string& oid,
 			      const std::set<std::string>& keys,
@@ -1576,6 +1579,7 @@ public:
 				      bool quota_threads,
 				      bool run_sync_thread,
 				      bool run_reshard_thread,
+				      bool run_notification_thread,
 				      bool use_cache = true,
 				      bool use_gc = true) {
     rgw::sal::Driver* driver = init_storage_provider(dpp, cct, cfg, use_gc_thread,
@@ -1583,6 +1587,7 @@ public:
 						   quota_threads,
 						   run_sync_thread,
 						   run_reshard_thread,
+                                                   run_notification_thread,
 						   use_cache, use_gc);
     return driver;
   }
@@ -1601,6 +1606,7 @@ public:
 						bool quota_threads,
 						bool run_sync_thread,
 						bool run_reshard_thread,
+                                                bool run_notification_thread,
 						bool use_metadata_cache,
 						bool use_gc);
   /** Initialize a new raw Driver */

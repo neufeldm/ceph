@@ -1905,8 +1905,39 @@ Then run the following:
         })
         extra = self.extra_ceph_conf().conf
         if extra:
-            config += '\n\n' + extra.strip() + '\n'
+            try:
+                config = self._combine_confs(config, extra)
+            except Exception as e:
+                self.log.error(f'Failed to add extra ceph conf settings to minimal ceph conf: {e}')
         return config
+
+    def _combine_confs(self, conf1: str, conf2: str) -> str:
+        section_to_option: Dict[str, List[str]] = {}
+        final_conf: str = ''
+        for conf in [conf1, conf2]:
+            if not conf:
+                continue
+            section = ''
+            for line in conf.split('\n'):
+                if line.strip().startswith('#') or not line.strip():
+                    continue
+                if line.strip().startswith('[') and line.strip().endswith(']'):
+                    section = line.strip().replace('[', '').replace(']', '')
+                    if section not in section_to_option:
+                        section_to_option[section] = []
+                else:
+                    section_to_option[section].append(line.strip())
+
+        first_section = True
+        for section, options in section_to_option.items():
+            if not first_section:
+                final_conf += '\n'
+            final_conf += f'[{section}]\n'
+            for option in options:
+                final_conf += f'{option}\n'
+            first_section = False
+
+        return final_conf
 
     def _invalidate_daemons_and_kick_serve(self, filter_host: Optional[str] = None) -> None:
         if filter_host:
@@ -3015,6 +3046,10 @@ Then run the following:
         return self._apply(spec)
 
     @handle_orch_error
+    def set_unmanaged(self, service_name: str, value: bool) -> str:
+        return self.spec_store.set_unmanaged(service_name, value)
+
+    @handle_orch_error
     def upgrade_check(self, image: str, version: str) -> str:
         if self.inventory.get_host_with_state("maintenance"):
             raise OrchestratorError("check aborted - you have hosts in maintenance state")
@@ -3048,7 +3083,15 @@ Then run the following:
         }
         for host, dm in self.cache.daemons.items():
             for name, dd in dm.items():
-                if image_info.image_id == dd.container_image_id:
+                # check if the container digest for the digest we're checking upgrades for matches
+                # the container digests for the daemon if "use_repo_digest" setting is true
+                # or that the image name matches the daemon's image name if "use_repo_digest"
+                # is false. The idea is to generally check if the daemon is already using
+                # the image we're checking upgrade to.
+                if (
+                    (self.use_repo_digest and dd.matches_digests(image_info.repo_digests))
+                    or (not self.use_repo_digest and dd.matches_image_name(image))
+                ):
                     r['up_to_date'].append(dd.name())
                 elif dd.daemon_type in CEPH_IMAGE_TYPES:
                     r['needs_update'][dd.name()] = {
